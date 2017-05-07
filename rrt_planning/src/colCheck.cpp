@@ -41,8 +41,8 @@
 
 std::vector<std::vector<double> > g_vertices_set; //2-D vectors contains the verticies in the free work-space
 //std::vector<std::vector<std::vector<double> > > g_edges_set; //3-dimension vector that contains the set of collision free edges
-int g_number_of_samples=10000;//select number of samples in free workspace
-double g_max_edge_length=0.05;//TODO: select value
+int g_number_of_samples=20000;//select number of samples in free workspace
+double g_max_edge_length=0.01;//TODO: select value
 
 std::vector<double> g_initial_vertex;//initial vertex setting up //g_initial_vertex
 std::vector<double> g_trgt_vertex;//TODO: put real values
@@ -62,7 +62,7 @@ std::vector<double> RandomAssignment(){
     double range_to[]= {  1.7016, 1.047, 3.0541, 2.618, 3.059, 2.094,  3.059};
 
 	generator= ((double) rand() / (RAND_MAX));
-	if(generator>0.7){
+	if(generator>0.90){
 		rand_vertex=g_trgt_vertex; 
 	}
 	else{
@@ -105,7 +105,7 @@ double NearestVertex(std::vector<double> vertex){
 			
 		}
 	}
-	ROS_INFO("i nearest: %f", nearest_index);
+	//ROS_INFO("i nearest: %f", nearest_index);
 	return nearest_index;
 }
 
@@ -443,13 +443,13 @@ bool obstacle_free_vertex(std::vector<double> angles) {
 	
 	//Obstacles:
 	Eigen::Matrix<double,4,4> obst1; 
-				 obst1	<< 	1, 0, 0, 0.4,
-							0, 1, 0, 0.4,
+				 obst1	<< 	1, 0, 0, -0.3,
+							0, 1, 0, 0.8,
 							0, 0, 1, 0,
 							0, 0, 0, 1;
 									  
 	Eigen::Matrix<double,3,1> Eobst1;
-				 Eobst1	 << 0.05,1,1;
+				 Eobst1	 << 0.01,0.01,1;
 				//Eobst1 << 0.0, 0.0, 0.0;
 	
 	//Check self collision:
@@ -491,8 +491,8 @@ bool obstacle_free_vertex(std::vector<double> angles) {
 			leave = check_for_collisions(selfBlock, checkingBlock, selfExtent, checkingExtent);
 			if (leave == true) {
 				//ROS_WARN("BLOCK %d AND %d",i,i1);
-				ROS_WARN("Box %d and %d", i, i1);
-				ROS_WARN("Self Collision Detected");
+				//ROS_WARN("Box %d and %d", i, i1);
+				//ROS_WARN("Self Collision Detected");
 				return false;
 			}
 		}
@@ -500,8 +500,8 @@ bool obstacle_free_vertex(std::vector<double> angles) {
 		//Collision check:
 		leave = check_for_collisions(selfBlock, obst1, selfExtent, Eobst1);
 		if (leave == true) {
-			ROS_WARN("Box %d",i);
-			ROS_WARN("Obstacle collision detected");
+			//ROS_WARN("Box %d",i);
+			//ROS_WARN("Obstacle collision detected");
 			return false;
 		}
 	}
@@ -560,18 +560,18 @@ bool obstacle_free_edge(std::vector<double> new_vertex,double nearest_index){
 		bool collisionFree = obstacle_free_vertex(testing_vertex);
 		
 		if (collisionFree == false) {
-			ROS_WARN("Collided Path");
-			ROS_INFO(" ");
+			//ROS_WARN("Collided Path");
+			//ROS_INFO(" ");
 
 			return false;
 		}
 		//ROS_INFO("Free test point");
 	}
 
-	ROS_INFO("Free Path");
-	ROS_INFO("Added: %f,%f,%f,%f,%f,%f,%f",new_vertex[0],new_vertex[1],new_vertex[2],new_vertex[3],new_vertex[4],new_vertex[5],new_vertex[6]);
-	ROS_INFO("Connected to: %f", nearest_index);
-	ROS_INFO(" ");
+	//ROS_INFO("Free Path");
+	//ROS_INFO("Added: %f,%f,%f,%f,%f,%f,%f",new_vertex[0],new_vertex[1],new_vertex[2],new_vertex[3],new_vertex[4],new_vertex[5],new_vertex[6]);
+	//ROS_INFO("Connected to: %f", nearest_index);
+	//ROS_INFO(" ");
 	return true;
 }
 //finding_path -----------------------------------------------------------------------------
@@ -592,7 +592,7 @@ std::vector<std::vector<double> > FindPath(){
 	do{	
 		path.push_back(g_vertices_set[i]); //adds the parent vertex to the path
 
-		ROS_INFO("%d- element number %f added to path ",j,i);
+		//ROS_INFO("%d- element number %f added to path ",j,i);
 		
 		i=  g_vertices_set[i][7];
 		j++;
@@ -632,6 +632,14 @@ int main(int argc, char **argv){
 	double nearest_index;
 	std::vector<double> new_vertex; // steer the vertex with a Max distance
 	std::vector<std::vector<double> > path;// contains a set of nodesfrom the goal to the initial pose
+	
+	for(int i=0;i<7;i++){
+		g_initial_vertex.push_back(1.0);
+		g_trgt_vertex.push_back(0);
+	}
+	g_initial_vertex.push_back(-1);
+
+
 	ros::Time start = ros::Time::now();
 	ros::Rate loop_rate(80);
   	baxter_core_msgs::JointCommand cmd;
@@ -649,14 +657,10 @@ int main(int argc, char **argv){
 	cmd.command.resize(cmd.names.size());
 
 	//command an initial motion to 0, then wait 5 seconds
-	cmd.command[0] = 0;
-	cmd.command[1] = 0;
-	cmd.command[2] = 0;
-	cmd.command[3] = 0;
-	cmd.command[4] = 0;
-	cmd.command[5] = 0;
-	cmd.command[6] = 0;
-	
+	for(int i=0;i<7;i++){
+			cmd.command[i] = g_initial_vertex[i];
+	}
+
 	ROS_INFO("moving to initial pose");
 
 	while((ros::Time::now() - start) < ros::Duration(2)) {
@@ -671,22 +675,17 @@ int main(int argc, char **argv){
 	
 	//ROS_INFO("calculating RRT");
 
-	for(int i=0;i<7;i++){
-		g_initial_vertex.push_back(1.0);
-		g_trgt_vertex.push_back(0.0);
-	}
 
 	bool initial_check = obstacle_free_vertex(g_initial_vertex);
 	bool target_check = obstacle_free_vertex(g_trgt_vertex);
 
-	g_initial_vertex.push_back(-1);
 
 	if (initial_check != true) {
-		ROS_WARN("INITIAL COLLIDE");
+		//ROS_WARN("INITIAL COLLIDE");
 		return 0;
 	}
 	if (target_check != true) {
-		ROS_WARN("TARGET COLLIDE");
+		//ROS_WARN("TARGET COLLIDE");
 		return 0;
 	}
 
@@ -722,15 +721,16 @@ int main(int argc, char **argv){
 
 		direction_vector = vectorAdd(new_vertex,nearest_vertex,-1);
 		double direction_distance = v_distance(new_vertex, nearest_vertex);
-		ROS_INFO("direction vector (pre-norm): %f,%f,%f,%f,%f,%f,%f",direction_vector[0],direction_vector[1],direction_vector[2],direction_vector[3],direction_vector[4],direction_vector[5],direction_vector[6]);
+		//ROS_INFO("direction vector (pre-norm): %f,%f,%f,%f,%f,%f,%f",direction_vector[0],direction_vector[1],direction_vector[2],direction_vector[3],direction_vector[4],direction_vector[5],direction_vector[6]);
 		for (int i = 0; i < 7; i++) {
 			direction_vector[i] = direction_vector[i]/direction_distance;
 		}
-		ROS_INFO("direction distance: %f", direction_distance);
-		ROS_INFO("direction vector: %f,%f,%f,%f,%f,%f,%f",direction_vector[0],direction_vector[1],direction_vector[2],direction_vector[3],direction_vector[4],direction_vector[5],direction_vector[6]);
+		//ROS_INFO("direction distance: %f", direction_distance);
+		//ROS_INFO("direction vector: %f,%f,%f,%f,%f,%f,%f",direction_vector[0],direction_vector[1],direction_vector[2],direction_vector[3],direction_vector[4],direction_vector[5],direction_vector[6]);
 
 		bool obstacle_free_check = obstacle_free_edge(new_vertex, nearest_index);
 		int counter = 0;
+		
 		while (obstacle_free_check != true) {
 			if (counter == 5) {
 				break;
@@ -745,7 +745,7 @@ int main(int argc, char **argv){
 
 			counter = counter + 1;
 		}
-
+		
 		//if(obstacle_free_vertex(new_vertex)&&obstacle_free_edge(new_vertex,nearest_index)){
 		if(obstacle_free_edge(new_vertex,nearest_index)){
 			g_vertices_set.push_back(new_vertex); //add new_vertex to the vertices set
@@ -757,25 +757,25 @@ int main(int argc, char **argv){
 			//ROS_INFO("New node= %f %f %f %f %f %f %f %f",g_vertices_set[i][0],g_vertices_set[i][1],g_vertices_set[i][2],g_vertices_set[i][3],g_vertices_set[i][4],g_vertices_set[i][5],g_vertices_set[i][6],g_vertices_set[i][7]);
 
 			i++; // increase the counter only when the new edge and vertex are added. If not repeat the loop.
-			ROS_INFO("-------------------Point Added--------------------------");
-			ROS_INFO("Number of points on graph: %d", i);
+			//ROS_INFO("-------------------Point Added--------------------------");
+			//ROS_INFO("Number of points on graph: %d", i);
 
 			double distance_to_goal = v_distance(new_vertex, g_trgt_vertex);
 			if (shortest_dist > distance_to_goal) {
 				shortest_dist = distance_to_goal;
 			}
-			ROS_INFO("Current distance %f ", distance_to_goal);
-			ROS_INFO("Shortest distance %f ", shortest_dist);
+			//ROS_INFO("Current distance %f ", distance_to_goal);
+			//ROS_INFO("Shortest distance %f ", shortest_dist);
 
 			if(distance_to_goal <= g_max_edge_length) {
-				ROS_INFO("***************IN MOVE RANGE**********************");
+				//ROS_INFO("***************IN MOVE RANGE**********************");
 				if(obstacle_free_edge(g_trgt_vertex,i-1)){
 
 					g_trgt_reached = true;
 
 					g_vertices_set.push_back(g_trgt_vertex);
 					g_vertices_set[i].push_back(i-1);
-					ROS_INFO("RRT reached goal");
+					//ROS_INFO("RRT reached goal");
 					ros::Duration(1);
 					break;
 				}
@@ -791,7 +791,7 @@ int main(int argc, char **argv){
 			g_trgt_reached=true; 
 				
 
-			ROS_INFO("RRT reached goal");
+			//ROS_INFO("RRT reached goal");
 			ros::Duration(1);
 			break;
 		}
